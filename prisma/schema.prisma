@@ -1,0 +1,185 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  STATE_ADMIN
+  LOCALITY_ADMIN
+  EDITOR
+}
+
+enum PostType {
+  NEWS
+  FIELD_UPDATE
+}
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum DonationMethodType {
+  BANK
+  MOBILE_MONEY
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  password_hash String
+  role          Role
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now())
+
+  posts         Post[]
+  localityAccess UserLocalityAccess[]
+}
+
+model Locality {
+  id              String   @id @default(uuid())
+  name_ar         String
+  name_en         String
+  slug            String   @unique
+  description_ar  String?
+  description_en  String?
+  cover_image     String?
+  created_at      DateTime @default(now())
+
+  posts           Post[]
+  documents       Document[]
+  photos          Photo[]
+  userAccess      UserLocalityAccess[]
+}
+
+model UserLocalityAccess {
+  id          String   @id @default(uuid())
+  user_id     String
+  locality_id String
+
+  user        User     @relation(fields: [user_id], references: [id])
+  locality    Locality @relation(fields: [locality_id], references: [id])
+
+  @@unique([user_id, locality_id])
+}
+
+model Post {
+  id            String     @id @default(uuid())
+  type          PostType
+  title_ar      String
+  title_en      String
+  slug          String     @unique
+  excerpt_ar    String?
+  excerpt_en    String?
+  body_ar       String?
+  body_en       String?
+
+  context_ar    String?
+  context_en    String?
+  action_ar     String?
+  action_en     String?
+  results_ar    String?
+  results_en    String?
+  next_steps_ar String?
+  next_steps_en String?
+
+  cover_image   String?
+  locality_id   String?
+  status        PostStatus @default(DRAFT)
+  published_at  DateTime?
+  urgent_need   Boolean    @default(false)
+  created_by    String
+  created_at    DateTime   @default(now())
+
+  author        User       @relation(fields: [created_by], references: [id])
+  locality      Locality?  @relation(fields: [locality_id], references: [id])
+}
+
+model Document {
+  id           String   @id @default(uuid())
+  title_ar     String
+  title_en     String
+  doc_type     String
+  file_url     String
+  locality_id  String?
+  uploaded_by  String
+  published_at DateTime?
+  created_at   DateTime @default(now())
+
+  locality     Locality? @relation(fields: [locality_id], references: [id])
+  uploader     User      @relation(fields: [uploaded_by], references: [id])
+}
+
+model Photo {
+  id          String   @id @default(uuid())
+  title_ar    String?
+  title_en    String?
+  image_url   String
+  locality_id String?
+  tags        String[]
+  uploaded_by String
+  taken_at    DateTime?
+  created_at  DateTime @default(now())
+
+  locality    Locality? @relation(fields: [locality_id], references: [id])
+  uploader    User      @relation(fields: [uploaded_by], references: [id])
+}
+
+model DonationMethod {
+  id          String             @id @default(uuid())
+  method_type DonationMethodType
+  title_ar    String
+  title_en    String
+  details_ar  String
+  details_en  String
+  is_active   Boolean            @default(true)
+  sort_order  Int                @default(0)
+}
+
+model TeamMember {
+  id         String   @id @default(uuid())
+  name       String
+  role_ar    String
+  role_en    String
+  bio_ar     String
+  bio_en     String
+  photo_url  String?
+  sort_order Int      @default(0)
+}
+
+model SiteSettings {
+  id             String   @id @default(uuid())
+  site_name_ar   String
+  site_name_en   String
+  logo_url       String?
+  hero_text_ar   String
+  hero_text_en   String
+  contact_email  String?
+  contact_phone  String?
+  socials        Json?
+  stats_json     Json
+}
+
+model ContactSubmission {
+  id         String   @id @default(uuid())
+  name       String
+  email      String?
+  phone      String?
+  message    String
+  created_at DateTime @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  user_id    String?
+  action     String
+  entity_type String
+  entity_id  String?
+  timestamp  DateTime @default(now())
+  meta_json  Json?
+}
