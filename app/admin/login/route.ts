@@ -1,30 +1,51 @@
+// app/admin/login/route.ts
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
-import { createSessionToken, verifyPassword } from "@/lib/auth";
+import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
-export async function POST(request: Request) {
-  const formData = await request.formData();
-  const email = String(formData.get("email") || "").toLowerCase();
-  const password = String(formData.get("password") || "");
+const prisma = new PrismaClient();
+
+export async function POST(req: Request) {
+  const form = await req.formData();
+  const email = String(form.get("email") || "").trim().toLowerCase();
+  const password = String(form.get("password") || "");
+
+  if (!email || !password) {
+    return NextResponse.json({ error: "Missing credentials" }, { status: 400 });
+  }
 
   const user = await prisma.user.findUnique({ where: { email } });
 
   if (!user || !user.is_active) {
-    return NextResponse.redirect(new URL("/admin/login", request.url));
+    return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
   }
 
-  const isValid = await verifyPassword(password, user.password_hash);
-  if (!isValid) {
-    return NextResponse.redirect(new URL("/admin/login", request.url));
+  const ok = await bcrypt.compare(password, user.password_hash);
+  if (!ok) {
+    return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
   }
 
-  const token = createSessionToken({ userId: user.id, role: user.role });
-  const response = NextResponse.redirect(new URL("/admin", request.url));
-  response.cookies.set("err_session", token, {
+  // set cookies
+  const res = NextResponse.redirect(new URL("/admin", req.url), 303);
+
+  // cookie lifetime: 7 days
+  const maxAge = 60 * 60 * 24 * 7;
+
+  res.cookies.set("err_user_id", user.id, {
     httpOnly: true,
     sameSite: "lax",
-    path: "/"
+    secure: false, // set true in production behind https
+    path: "/",
+    maxAge,
   });
 
-  return response;
+  res.cookies.set("err_role", user.role, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: false,
+    path: "/",
+    maxAge,
+  });
+
+  return res;
 }
