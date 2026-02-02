@@ -1,11 +1,29 @@
-import type { Role } from "@prisma/client";
+// lib/rbac.ts
+import { cookies } from "next/headers";
+import { Role } from "@prisma/client";
 
-export const canManageUsers = (role: Role) => role === "SUPER_ADMIN";
+export type SessionUser = {
+  id: string;
+  role: Role;
+};
 
-export const canManageLocalities = (role: Role) =>
-  role === "SUPER_ADMIN" || role === "STATE_ADMIN";
+export function getSessionUser(): SessionUser | null {
+  const jar = cookies();
+  const id = jar.get("err_user_id")?.value;
+  const role = jar.get("err_role")?.value as Role | undefined;
 
-export const canPublish = (role: Role) =>
-  role === "SUPER_ADMIN" || role === "STATE_ADMIN" || role === "LOCALITY_ADMIN";
+  if (!id || !role) return null;
+  return { id, role };
+}
 
-export const isEditor = (role: Role) => role === "EDITOR";
+export function requireAuth(): SessionUser {
+  const user = getSessionUser();
+  if (!user) throw new Error("UNAUTHORIZED");
+  return user;
+}
+
+export function requireRole(allowed: Role[]): SessionUser {
+  const user = requireAuth();
+  if (!allowed.includes(user.role)) throw new Error("FORBIDDEN");
+  return user;
+}
