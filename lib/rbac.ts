@@ -2,10 +2,7 @@
 import { cookies } from "next/headers";
 import { Role } from "@prisma/client";
 
-export type SessionUser = {
-  id: string;
-  role: Role;
-};
+export type SessionUser = { id: string; role: Role };
 
 export function getSessionUser(): SessionUser | null {
   const jar = cookies();
@@ -26,4 +23,8 @@ export function requireRole(allowed: Role[]): SessionUser {
   const user = requireAuth();
   if (!allowed.includes(user.role)) throw new Error("FORBIDDEN");
   return user;
+}
+
+export function isRole(user: SessionUser, role: Role) {
+  return user.role === role;
 }
