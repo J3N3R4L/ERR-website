@@ -1,29 +1,33 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
-import { verifySessionToken } from "@/lib/auth";
+// middleware.ts
+import { NextRequest, NextResponse } from "next/server";
 
-export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  if (!pathname.startsWith("/admin")) {
-    return NextResponse.next();
-  }
+export function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
 
-  if (pathname.startsWith("/admin/login")) {
-    return NextResponse.next();
-  }
+  if (!pathname.startsWith("/admin")) return NextResponse.next();
 
-  const token = request.cookies.get("err_session")?.value;
-  const session = token ? verifySessionToken(token) : null;
+  // Allow login page + login POST handler
+  if (pathname === "/admin/login") return NextResponse.next();
 
-  if (!session) {
-    const url = request.nextUrl.clone();
+  // Auth cookies (set by app/admin/login/route.ts)
+  const userId = req.cookies.get("err_user_id")?.value;
+  const role = req.cookies.get("err_role")?.value;
+
+  if (!userId || !role) {
+    const url = req.nextUrl.clone();
     url.pathname = "/admin/login";
+    url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
+  }
+
+  // Server-side access block example:
+  if (pathname.startsWith("/admin/users") && role !== "SUPER_ADMIN") {
+    return new NextResponse("Access denied", { status: 403 });
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/admin/:path*"]
+  matcher: ["/admin/:path*"],
 };
