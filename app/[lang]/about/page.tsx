@@ -55,7 +55,9 @@ export default function AboutPage({ params }: { params: { lang: string } }) {
       <section>
         <h2 className="text-2xl font-semibold">{t(lang, "Principles", "المبادئ")}</h2>
         <ul className="mt-4 list-disc space-y-2 ps-5 text-slate-700">
+       codex/create-phase-0-plan-for-website-eh8ep0
           {(lang === "ar" ? principlesAr : principlesEn).map((item: string) => (
+        
             <li key={item}>{item}</li>
           ))}
         </ul>

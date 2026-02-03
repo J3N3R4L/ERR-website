@@ -1,5 +1,7 @@
+import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { prisma } from "../lib/db";
+
+const prisma = new PrismaClient();
 
 const localities = [
   { name_en: "Nyala North", name_ar: "نيالا شمال", slug: "nyala-north" },
@@ -9,10 +11,11 @@ const localities = [
   { name_en: "Tulus", name_ar: "تلس", slug: "tulus" },
   { name_en: "Ed El Fursan", name_ar: "عد الفرسان", slug: "ed-el-fursan" },
   { name_en: "Buram", name_ar: "برام", slug: "buram" },
-  { name_en: "Kubum", name_ar: "كبم", slug: "kubum" }
+  { name_en: "Kubum", name_ar: "كبم", slug: "kubum" },
 ];
 
 async function main() {
+  // Clean tables (children first, then parents)
   await prisma.userLocalityAccess.deleteMany();
   await prisma.post.deleteMany();
   await prisma.document.deleteMany();
@@ -24,15 +27,17 @@ async function main() {
   await prisma.locality.deleteMany();
   await prisma.user.deleteMany();
 
+  // Localities
   await prisma.locality.createMany({
-    data: localities.map((locality: { name_en: string; name_ar: string; slug: string }) => ({
+    data: localities.map((locality) => ({
       ...locality,
       description_en: `Coverage area for ${locality.name_en}.`,
-      description_ar: `نطاق التغطية لمحلية ${locality.name_ar}.`
+      description_ar: `نطاق التغطية لمحلية ${locality.name_ar}.`,
     })),
-    skipDuplicates: true
+    skipDuplicates: true,
   });
 
+  // Users
   const superAdminPassword = process.env.SEED_SUPER_ADMIN_PASSWORD || "ChangeMe123!";
   const localityAdminPassword = process.env.SEED_LOCALITY_ADMIN_PASSWORD || "ChangeMe123!";
 
@@ -41,8 +46,8 @@ async function main() {
       email: "superadmin@err.local",
       password_hash: await bcrypt.hash(superAdminPassword, 12),
       role: "SUPER_ADMIN",
-      is_active: true
-    }
+      is_active: true,
+    },
   });
 
   const localityAdmin = await prisma.user.create({
@@ -50,20 +55,22 @@ async function main() {
       email: "kubum.admin@err.local",
       password_hash: await bcrypt.hash(localityAdminPassword, 12),
       role: "LOCALITY_ADMIN",
-      is_active: true
-    }
+      is_active: true,
+    },
   });
 
+  // Give locality admin access to Kubum
   const kubum = await prisma.locality.findUnique({ where: { slug: "kubum" } });
   if (kubum) {
     await prisma.userLocalityAccess.create({
       data: {
         user_id: localityAdmin.id,
-        locality_id: kubum.id
-      }
+        locality_id: kubum.id,
+      },
     });
   }
 
+  // Donation methods
   await prisma.donationMethod.createMany({
     data: [
       {
@@ -72,7 +79,7 @@ async function main() {
         title_ar: "بنك الخرطوم",
         details_en: "Account name: South Darfur ERRs. Account: 123456789.",
         details_ar: "اسم الحساب: غرف طوارئ جنوب دارفور. الرقم: 123456789.",
-        sort_order: 1
+        sort_order: 1,
       },
       {
         method_type: "MOBILE_MONEY",
@@ -80,11 +87,12 @@ async function main() {
         title_ar: "ماي كاشي",
         details_en: "Wallet: 249900000000. Name: ERR South Darfur.",
         details_ar: "المحفظة: 249900000000. الاسم: غرف طوارئ جنوب دارفور.",
-        sort_order: 2
-      }
-    ]
+        sort_order: 2,
+      },
+    ],
   });
 
+  // Site settings
   await prisma.siteSettings.create({
     data: {
       site_name_en: "South Darfur Emergency Response Rooms",
@@ -95,11 +103,12 @@ async function main() {
         total_beneficiaries: 125000,
         interventions_delivered: 320,
         localities_covered: 8,
-        active_volunteers: 540
-      }
-    }
+        active_volunteers: 540,
+      },
+    },
   });
 
+  // Sample posts
   await prisma.post.createMany({
     data: [
       {
@@ -114,7 +123,7 @@ async function main() {
         locality_id: kubum?.id ?? null,
         status: "PUBLISHED",
         published_at: new Date(),
-        created_by: superAdmin.id
+        created_by: superAdmin.id,
       },
       {
         type: "NEWS",
@@ -128,7 +137,7 @@ async function main() {
         locality_id: null,
         status: "PUBLISHED",
         published_at: new Date(),
-        created_by: superAdmin.id
+        created_by: superAdmin.id,
       },
       {
         type: "FIELD_UPDATE",
@@ -149,7 +158,7 @@ async function main() {
         locality_id: kubum?.id ?? null,
         status: "PUBLISHED",
         published_at: new Date(),
-        created_by: superAdmin.id
+        created_by: superAdmin.id,
       },
       {
         type: "FIELD_UPDATE",
@@ -170,17 +179,19 @@ async function main() {
         locality_id: null,
         status: "PUBLISHED",
         published_at: new Date(),
-        created_by: superAdmin.id
-      }
-    ]
+        created_by: superAdmin.id,
+      },
+    ],
   });
 
-  console.log("Seed completed.");
+  console.log("✅ Seed completed.");
+  console.log("✅ superadmin@err.local / (SEED_SUPER_ADMIN_PASSWORD or ChangeMe123!)");
+  console.log("✅ kubum.admin@err.local / (SEED_LOCALITY_ADMIN_PASSWORD or ChangeMe123!)");
 }
 
 main()
   .catch((error) => {
-    console.error(error);
+    console.error("❌ Seed failed:", error);
     process.exit(1);
   })
   .finally(async () => {

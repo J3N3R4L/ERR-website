@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { isSupportedLang, type Lang } from "@/lib/i18n";
 
-type NewsDetail = {
+type NewsRow = {
   title_en: string;
   title_ar: string;
   excerpt_en: string | null;
@@ -14,7 +14,7 @@ type NewsDetail = {
 };
 
 export default async function NewsDetailPage({
-  params
+  params,
 }: {
   params: { lang: string; slug: string };
 }) {
@@ -22,7 +22,7 @@ export default async function NewsDetailPage({
     return null;
   }
 
-  const post = await prisma.post.findUnique({
+  const post: NewsRow | null = await prisma.post.findUnique({
     where: { slug: params.slug },
     select: {
       title_en: true,
@@ -32,8 +32,8 @@ export default async function NewsDetailPage({
       body_en: true,
       body_ar: true,
       type: true,
-      status: true
-    }
+      status: true,
+    },
   });
 
   if (!post || post.type !== "NEWS" || post.status !== "PUBLISHED") {
@@ -41,22 +41,23 @@ export default async function NewsDetailPage({
   }
 
   const lang = params.lang as Lang;
-  const typedPost = post as NewsDetail;
 
   return (
     <main className="container py-12 space-y-6">
       <header>
         <h1 className="text-3xl font-semibold">
-          {lang === "ar" ? typedPost.title_ar : typedPost.title_en}
+          {lang === "ar" ? post.title_ar : post.title_en}
         </h1>
-        {typedPost.excerpt_en && (
+
+        {(lang === "ar" ? post.excerpt_ar : post.excerpt_en) ? (
           <p className="mt-3 text-slate-600">
-            {lang === "ar" ? typedPost.excerpt_ar : typedPost.excerpt_en}
+            {lang === "ar" ? post.excerpt_ar : post.excerpt_en}
           </p>
-        )}
+        ) : null}
       </header>
+
       <article className="prose max-w-none">
-        <p>{lang === "ar" ? typedPost.body_ar : typedPost.body_en}</p>
+        <p>{lang === "ar" ? post.body_ar ?? "" : post.body_en ?? ""}</p>
       </article>
     </main>
   );

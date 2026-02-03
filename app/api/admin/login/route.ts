@@ -14,26 +14,27 @@ export async function POST(request: Request) {
       email: true,
       password_hash: true,
       role: true,
-      is_active: true
-    }
+      is_active: true,
+    },
   });
 
   if (!user || !user.is_active) {
-    return NextResponse.redirect(new URL("/admin/login", request.url));
+    return NextResponse.redirect(new URL("/admin/login", request.url), 303);
   }
 
   const isValid = await verifyPassword(password, user.password_hash);
   if (!isValid) {
-    return NextResponse.redirect(new URL("/admin/login", request.url));
+    return NextResponse.redirect(new URL("/admin/login", request.url), 303);
   }
 
   const token = createSessionToken({ userId: user.id, role: user.role });
-  const response = NextResponse.redirect(new URL("/admin", request.url));
+
+  const response = NextResponse.redirect(new URL("/admin", request.url), 303);
   response.cookies.set("err_session", token, {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    secure: process.env.NODE_ENV === "production"
+    secure: process.env.NODE_ENV === "production",
   });
 
   return response;

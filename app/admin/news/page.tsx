@@ -2,82 +2,112 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/session";
 
-type NewsRow = {
+type AccessEntry = { locality_id: string };
+
+type AdminNewsRow = {
   id: string;
+  slug: string;
   title_en: string;
+  title_ar: string;
   status: string;
-  locality: { name_en: string } | null;
-  author: { email: string };
+  created_at: Date;
+  published_at: Date | null;
+  locality: { id: string; name_en: string } | null;
 };
 
-export default async function NewsAdminPage() {
+export default async function AdminNewsPage() {
   const sessionUser = await getSessionUser();
   if (!sessionUser) {
-    return <p className="text-red-600">Please log in.</p>;
+    return (
+      <main className="container py-10">
+        <p className="text-red-600">Please log in.</p>
+      </main>
+    );
   }
 
-  const canAccessAll = sessionUser.role === "SUPER_ADMIN" || sessionUser.role === "STATE_ADMIN";
+  const role = sessionUser.role;
+  const canSeeAll = role === "SUPER_ADMIN" || role === "STATE_ADMIN";
 
-  const access = await prisma.userLocalityAccess.findMany({
+  const access: AccessEntry[] = await prisma.userLocalityAccess.findMany({
     where: { user_id: sessionUser.id },
-    select: { locality_id: true }
+    select: { locality_id: true },
   });
-  const localityIds = access.map((entry: { locality_id: string }) => entry.locality_id);
 
-  const posts = await prisma.post.findMany({
-    where: {
-      type: "NEWS",
-      ...(canAccessAll ? {} : { locality_id: { in: localityIds } })
-    },
+  const localityIds = access.map((entry: AccessEntry) => entry.locality_id);
+
+  const posts: AdminNewsRow[] = await prisma.post.findMany({
+    where: canSeeAll ? { type: "NEWS" } : { type: "NEWS", locality_id: { in: localityIds } },
+    orderBy: [{ published_at: "desc" }, { created_at: "desc" }],
     select: {
       id: true,
+      slug: true,
       title_en: true,
+      title_ar: true,
       status: true,
-      locality: { select: { name_en: true } },
-      author: { select: { email: true } }
+      created_at: true,
+      published_at: true,
+      locality: { select: { id: true, name_en: true } },
     },
-    orderBy: { created_at: "desc" }
   });
 
   return (
-    <div className="space-y-6">
+    <main className="container py-10 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold">News</h2>
-          <p className="text-slate-600">Manage news posts and publishing.</p>
+          <h1 className="text-2xl font-semibold">News</h1>
+          <p className="text-slate-600">Manage published and draft news posts.</p>
         </div>
-        <Link className="rounded bg-slate-900 px-4 py-2 text-white" href="/admin/news/new">
+
+        <Link href="/admin/news/new" className="rounded bg-slate-900 px-4 py-2 text-white">
           New post
         </Link>
       </div>
+
       <div className="rounded bg-white shadow">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left border-b">
+            <tr className="border-b text-left">
               <th className="p-3">Title</th>
-              <th className="p-3">Status</th>
               <th className="p-3">Locality</th>
-              <th className="p-3">Author</th>
-              <th className="p-3"></th>
+              <th className="p-3">Status</th>
+              <th className="p-3">Actions</th>
             </tr>
           </thead>
+
           <tbody>
-            {posts.map((post: NewsRow) => (
+            {posts.map((post: AdminNewsRow) => (
               <tr key={post.id} className="border-b">
-                <td className="p-3">{post.title_en}</td>
-                <td className="p-3">{post.status}</td>
-                <td className="p-3">{post.locality?.name_en ?? "Global"}</td>
-                <td className="p-3">{post.author.email}</td>
-                <td className="p-3 text-right">
-                  <Link className="text-slate-700 underline" href={`/admin/news/${post.id}/edit`}>
+                <td className="p-3">
+                  <div className="font-medium">{post.title_en}</div>
+                  <div className="text-slate-500">{post.title_ar}</div>
+                </td>
+
+                <td className="p-3">
+                  {post.locality?.name_en ?? <span className="text-slate-500">Global</span>}
+                </td>
+
+                <td className="p-3">
+                  <span className="rounded border border-slate-200 px-2 py-1">{post.status}</span>
+                </td>
+
+                <td className="p-3">
+                  <Link href={`/admin/news/${post.id}/edit`} className="text-slate-900 underline">
                     Edit
                   </Link>
                 </td>
               </tr>
             ))}
+
+            {posts.length === 0 ? (
+              <tr>
+                <td className="p-6 text-slate-600" colSpan={4}>
+                  No posts found.
+                </td>
+              </tr>
+            ) : null}
           </tbody>
         </table>
       </div>
-    </div>
+    </main>
   );
 }

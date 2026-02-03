@@ -1,45 +1,72 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
 import { getSessionUser } from "@/lib/session";
-import { canManageUsers, canManageLocalities } from "@/lib/rbac";
+import { canManageUsers, canManageLocalities, canPublish } from "@/lib/rbac";
 
-export default async function AdminLayout({ children }: { children: ReactNode }) {
+export default async function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const user = await getSessionUser();
-  const roleUser = user ?? null;
+
+  if (!user) {
+    return (
+      <main className="container py-10">
+        <p className="text-red-600">Please log in.</p>
+        <Link className="underline" href="/admin/login">
+          Go to login
+        </Link>
+      </main>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <div className="flex">
-        <aside className="w-64 bg-white border-r border-slate-200 p-6">
-          <h1 className="text-lg font-semibold">ERR Admin</h1>
-          <p className="mt-1 text-xs text-slate-500">{user?.email}</p>
-          <nav className="mt-6 space-y-2 text-sm">
-            <Link className="block" href="/admin">
-              Dashboard
+    <div className="min-h-screen bg-slate-50">
+      <header className="border-b bg-white">
+        <div className="container flex items-center justify-between py-4">
+          <div className="flex items-center gap-4">
+            <Link href="/admin" className="font-semibold">
+              Admin
             </Link>
-            {canManageUsers(roleUser) && (
-              <Link className="block" href="/admin/users">
-                Users
+
+            <nav className="flex items-center gap-4 text-sm text-slate-700">
+              <Link className="hover:underline" href="/admin">
+                Dashboard
               </Link>
-            )}
-            {canManageLocalities(roleUser) && (
-              <Link className="block" href="/admin/localities">
-                Localities
+
+              <Link className="hover:underline" href="/admin/news">
+                News
               </Link>
-            )}
-            <Link className="block" href="/admin/news">
-              News
-            </Link>
-            <span className="block text-slate-400">Field Updates</span>
-            <span className="block text-slate-400">Documents</span>
-            <span className="block text-slate-400">Photos</span>
-            <span className="block text-slate-400">Donations</span>
-            <span className="block text-slate-400">Team</span>
-            <span className="block text-slate-400">Settings</span>
-          </nav>
-        </aside>
-        <main className="flex-1 p-10">{children}</main>
-      </div>
+
+              {canManageLocalities(user) ? (
+                <Link className="hover:underline" href="/admin/localities">
+                  Localities
+                </Link>
+              ) : null}
+
+              {canManageUsers(user) ? (
+                <Link className="hover:underline" href="/admin/users">
+                  Users
+                </Link>
+              ) : null}
+
+              {canPublish(user) ? (
+                <Link className="hover:underline" href="/admin/news/new">
+                  New Post
+                </Link>
+              ) : null}
+            </nav>
+          </div>
+
+          <div className="text-sm text-slate-600">
+            <span className="font-medium">{user.email}</span>{" "}
+            <span className="text-slate-400">•</span>{" "}
+            <span>{user.role}</span>
+          </div>
+        </div>
+      </header>
+
+      <main className="container py-8">{children}</main>
     </div>
   );
 }
