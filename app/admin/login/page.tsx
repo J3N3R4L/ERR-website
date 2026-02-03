@@ -2,7 +2,7 @@ export default function AdminLoginPage() {
   return (
     <main className="container py-16">
       <h1 className="text-2xl font-semibold">Admin Login</h1>
-      <form className="mt-6 max-w-md space-y-4" method="post" action="/admin/login">
+      <form className="mt-6 max-w-md space-y-4" method="post" action="/api/admin/login">
         <label className="block text-sm font-medium">
           Email
           <input
