@@ -1,4 +1,3 @@
-// app/admin/login/route.ts
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
@@ -15,7 +14,6 @@ export async function POST(req: Request) {
   }
 
   const user = await prisma.user.findUnique({ where: { email } });
-
   if (!user || !user.is_active) {
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
   }
@@ -25,16 +23,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
   }
 
-  // set cookies
   const res = NextResponse.redirect(new URL("/admin", req.url), 303);
-
-  // cookie lifetime: 7 days
   const maxAge = 60 * 60 * 24 * 7;
 
   res.cookies.set("err_user_id", user.id, {
     httpOnly: true,
     sameSite: "lax",
-    secure: false, // set true in production behind https
+    secure: false,
     path: "/",
     maxAge,
   });
