@@ -33,7 +33,7 @@ export default function AdminHome() {
         </a>
       </div>
 
-      <form action="/admin/logout" method="post">
+      <form action="/api/admin/logout" method="post">
         <button className="rounded bg-slate-900 px-4 py-2 text-white" type="submit">
           Logout
         </button>
