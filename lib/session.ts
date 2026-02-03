@@ -1,18 +1,21 @@
-import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
-import { verifySessionToken } from "@/lib/auth";
+import { cookies } from "next/headers";
+import type { AppRole, SessionUser } from "@/lib/rbac";
 
-export const getSessionUser = async () => {
-  const token = cookies().get("err_session")?.value;
-  const payload = token ? verifySessionToken(token) : null;
-  if (!payload) return null;
+export async function getSessionUser(): Promise<SessionUser | null> {
+  const cookie = cookies().get("session")?.value;
+  if (!cookie) return null;
 
-  return prisma.user.findUnique({ where: { id: payload.userId } });
-};
+  const user = await prisma.user.findUnique({
+    where: { id: cookie },
+    select: { id: true, email: true, role: true },
+  });
 
-export const getSessionFromRequest = (request: Request) => {
-  const cookieHeader = request.headers.get("cookie") || "";
-  const match = cookieHeader.match(/err_session=([^;]+)/);
-  const token = match ? decodeURIComponent(match[1]) : null;
-  return token ? verifySessionToken(token) : null;
-};
+  if (!user) return null;
+
+  return {
+    id: user.id,
+    email: user.email,
+    role: user.role as unknown as AppRole, // stored as strings in DB
+  };
+}

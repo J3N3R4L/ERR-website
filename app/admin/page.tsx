@@ -1,43 +1,29 @@
-// app/admin/page.tsx
-import { getSessionUser } from "@/lib/rbac"; // if alias doesn't work, see note below
-import { Role } from "@prisma/client";
+import { getSessionUser } from "@/lib/session";
 
-export default function AdminHome() {
-  const user = getSessionUser();
+export default async function AdminHome() {
+  const user = await getSessionUser();
 
-  // Middleware already protects this, but keep safe
   if (!user) {
     return (
-      <main className="container py-16">
-        <h1 className="text-2xl font-semibold">Admin</h1>
-        <p>You are not logged in.</p>
+      <main className="container py-10">
+        <p className="text-red-600">Please log in.</p>
       </main>
     );
   }
 
   return (
-    <main className="container py-16 space-y-4">
+    <main className="container py-10 space-y-4">
       <h1 className="text-2xl font-semibold">Admin Dashboard</h1>
-      <p>
-        Logged in as <span className="font-mono">{user.id}</span> ({user.role})
+
+      <p className="text-slate-600">
+        Welcome back, <strong>{user.email}</strong>
       </p>
 
-      <div className="flex gap-3">
-        {user.role === Role.SUPER_ADMIN && (
-          <a className="rounded border px-3 py-2" href="/admin/users">
-            Manage Users
-          </a>
-        )}
-        <a className="rounded border px-3 py-2" href="/admin/localities">
-          Localities
-        </a>
+      <div className="rounded border border-slate-200 p-4">
+        <p>
+          <strong>Role:</strong> {user.role}
+        </p>
       </div>
-
-      <form action="/api/admin/logout" method="post">
-        <button className="rounded bg-slate-900 px-4 py-2 text-white" type="submit">
-          Logout
-        </button>
-      </form>
     </main>
   );
 }

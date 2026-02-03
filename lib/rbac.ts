@@ -1,30 +1,35 @@
 // lib/rbac.ts
-import { cookies } from "next/headers";
-import { Role } from "@prisma/client";
+// Pure RBAC helpers (no cookies, no prisma, no session reading)
 
-export type SessionUser = { id: string; role: Role };
+export type AppRole = "SUPER_ADMIN" | "STATE_ADMIN" | "LOCALITY_ADMIN" | "EDITOR";
 
-export function getSessionUser(): SessionUser | null {
-  const jar = cookies();
-  const id = jar.get("err_user_id")?.value;
-  const role = jar.get("err_role")?.value as Role | undefined;
+export type SessionUser = {
+  id: string;
+  email?: string;
+  role: AppRole;
+};
 
-  if (!id || !role) return null;
-  return { id, role };
+export function canManageUsers(user: SessionUser) {
+  return user.role === "SUPER_ADMIN";
 }
 
-export function requireAuth(): SessionUser {
-  const user = getSessionUser();
-  if (!user) throw new Error("UNAUTHORIZED");
-  return user;
+export function canManageLocalities(user: SessionUser) {
+  return user.role === "SUPER_ADMIN" || user.role === "STATE_ADMIN";
 }
 
-export function requireRole(allowed: Role[]): SessionUser {
-  const user = requireAuth();
-  if (!allowed.includes(user.role)) throw new Error("FORBIDDEN");
-  return user;
+export function canPublish(user: SessionUser) {
+  return (
+    user.role === "SUPER_ADMIN" ||
+    user.role === "STATE_ADMIN" ||
+    user.role === "LOCALITY_ADMIN"
+  );
 }
 
-export function isRole(user: SessionUser, role: Role) {
-  return user.role === role;
+export function canEditPosts(user: SessionUser) {
+  // Editors can edit drafts they have access to (scoping handled elsewhere)
+  return canPublish(user) || user.role === "EDITOR";
+}
+
+export function canSelectAnyLocality(user: SessionUser) {
+  return user.role === "SUPER_ADMIN" || user.role === "STATE_ADMIN";
 }
