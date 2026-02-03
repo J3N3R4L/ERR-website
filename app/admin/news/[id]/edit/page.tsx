@@ -10,6 +10,20 @@ type AccessEntry = {
   locality: LocalityLite;
 };
 
+type PostRow = {
+  id: string;
+  type: string;
+  title_en: string;
+  title_ar: string;
+  slug: string;
+  excerpt_en: string | null;
+  excerpt_ar: string | null;
+  body_en: string | null;
+  body_ar: string | null;
+  status: string;
+  locality_id: string | null;
+};
+
 export default async function NewsEditPage({
   params,
 }: {
@@ -24,9 +38,21 @@ export default async function NewsEditPage({
     );
   }
 
-  const post = await prisma.post.findUnique({
+  const post: PostRow | null = await prisma.post.findUnique({
     where: { id: params.id },
-    include: { locality: true },
+    select: {
+      id: true,
+      type: true,
+      title_en: true,
+      title_ar: true,
+      slug: true,
+      excerpt_en: true,
+      excerpt_ar: true,
+      body_en: true,
+      body_ar: true,
+      status: true,
+      locality_id: true,
+    },
   });
 
   if (!post || post.type !== "NEWS") {
@@ -36,7 +62,7 @@ export default async function NewsEditPage({
   const role = sessionUser.role;
   const canSelectAnyLocality = role === "SUPER_ADMIN" || role === "STATE_ADMIN";
 
-  // Force the type so TS never treats it as any[]
+  // Force type so TS never treats it as any[]
   const access: AccessEntry[] = await prisma.userLocalityAccess.findMany({
     where: { user_id: sessionUser.id },
     select: {
@@ -47,7 +73,7 @@ export default async function NewsEditPage({
     },
   });
 
-  const localityIds = access.map((entry) => entry.locality_id);
+  const localityIds = access.map((entry: AccessEntry) => entry.locality_id);
 
   if (!canSelectAnyLocality && (!post.locality_id || !localityIds.includes(post.locality_id))) {
     return (
@@ -62,7 +88,7 @@ export default async function NewsEditPage({
         orderBy: { name_en: "asc" },
         select: { id: true, name_en: true, name_ar: true, slug: true },
       })
-    : access.map((entry) => entry.locality);
+    : access.map((entry: AccessEntry) => entry.locality);
 
   const publishAllowed = canPublish(sessionUser);
 
@@ -158,7 +184,7 @@ export default async function NewsEditPage({
                 className="mt-1 w-full rounded border border-slate-300 px-3 py-2"
               >
                 <option value="">Global</option>
-                {accessibleLocalities.map((locality) => (
+                {accessibleLocalities.map((locality: LocalityLite) => (
                   <option key={locality.id} value={locality.id}>
                     {locality.name_en}
                   </option>
@@ -177,7 +203,7 @@ export default async function NewsEditPage({
               defaultValue={post.status}
             >
               <option value="DRAFT">Draft</option>
-              {publishAllowed && <option value="PUBLISHED">Published</option>}
+              {publishAllowed ? <option value="PUBLISHED">Published</option> : null}
             </select>
           </label>
 

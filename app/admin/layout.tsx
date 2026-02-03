@@ -38,23 +38,23 @@ export default async function AdminLayout({
                 News
               </Link>
 
-              {canManageLocalities(user) && (
+              {canManageLocalities(user) ? (
                 <Link className="hover:underline" href="/admin/localities">
                   Localities
                 </Link>
-              )}
+              ) : null}
 
-              {canManageUsers(user) && (
+              {canManageUsers(user) ? (
                 <Link className="hover:underline" href="/admin/users">
                   Users
                 </Link>
-              )}
+              ) : null}
 
-              {canPublish(user) && (
+              {canPublish(user) ? (
                 <Link className="hover:underline" href="/admin/news/new">
                   New Post
                 </Link>
-              )}
+              ) : null}
             </nav>
           </div>
 

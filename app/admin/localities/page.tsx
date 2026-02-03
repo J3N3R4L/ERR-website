@@ -90,7 +90,10 @@ export default async function LocalitiesPage() {
           />
         </label>
 
-        <button type="submit" className="col-span-full w-fit rounded bg-slate-900 px-4 py-2 text-white">
+        <button
+          type="submit"
+          className="col-span-full w-fit rounded bg-slate-900 px-4 py-2 text-white"
+        >
           Create locality
         </button>
       </form>
@@ -105,7 +108,7 @@ export default async function LocalitiesPage() {
             </tr>
           </thead>
           <tbody>
-            {localities.map((locality) => (
+            {localities.map((locality: LocalityRow) => (
               <tr key={locality.id} className="border-b">
                 <td className="p-3">{locality.name_en}</td>
                 <td className="p-3">{locality.name_ar}</td>

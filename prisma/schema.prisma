@@ -103,7 +103,7 @@ model Post {
 }
 
 model Document {
-  id           String    @id @default(uuid())
+  id           String   @id @default(uuid())
   title_ar     String
   title_en     String
   doc_type     String
@@ -111,14 +111,14 @@ model Document {
   locality_id  String?
   uploaded_by  String
   published_at DateTime?
-  created_at   DateTime  @default(now())
+  created_at   DateTime @default(now())
 
   locality Locality? @relation(fields: [locality_id], references: [id])
   uploader User      @relation(fields: [uploaded_by], references: [id])
 }
 
 model Photo {
-  id          String    @id @default(uuid())
+  id          String   @id @default(uuid())
   title_ar    String?
   title_en    String?
   image_url   String
@@ -126,7 +126,7 @@ model Photo {
   tags        String[]
   uploaded_by String
   taken_at    DateTime?
-  created_at  DateTime  @default(now())
+  created_at  DateTime @default(now())
 
   locality Locality? @relation(fields: [locality_id], references: [id])
   uploader User      @relation(fields: [uploaded_by], references: [id])
@@ -155,7 +155,7 @@ model TeamMember {
 }
 
 model SiteSettings {
-  id            String  @id @default(uuid())
+  id            String @id @default(uuid())
   site_name_ar  String
   site_name_en  String
   logo_url      String?

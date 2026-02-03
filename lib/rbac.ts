@@ -1,7 +1,11 @@
 // lib/rbac.ts
 // Pure RBAC helpers (no cookies, no prisma, no session reading)
 
-export type AppRole = "SUPER_ADMIN" | "STATE_ADMIN" | "LOCALITY_ADMIN" | "EDITOR";
+export type AppRole =
+  | "SUPER_ADMIN"
+  | "STATE_ADMIN"
+  | "LOCALITY_ADMIN"
+  | "EDITOR";
 
 export type SessionUser = {
   id: string;
@@ -9,27 +13,49 @@ export type SessionUser = {
   role: AppRole;
 };
 
-export function canManageUsers(user: SessionUser) {
-  return user.role === "SUPER_ADMIN";
+/**
+ * SUPER_ADMIN only
+ */
+export function canManageUsers(user: SessionUser | null) {
+  return user?.role === "SUPER_ADMIN";
 }
 
-export function canManageLocalities(user: SessionUser) {
-  return user.role === "SUPER_ADMIN" || user.role === "STATE_ADMIN";
+/**
+ * SUPER_ADMIN, STATE_ADMIN
+ */
+export function canManageLocalities(user: SessionUser | null) {
+  return user?.role === "SUPER_ADMIN" || user?.role === "STATE_ADMIN";
 }
 
-export function canPublish(user: SessionUser) {
+/**
+ * SUPER_ADMIN, STATE_ADMIN, LOCALITY_ADMIN
+ */
+export function canPublish(user: SessionUser | null) {
   return (
-    user.role === "SUPER_ADMIN" ||
-    user.role === "STATE_ADMIN" ||
-    user.role === "LOCALITY_ADMIN"
+    user?.role === "SUPER_ADMIN" ||
+    user?.role === "STATE_ADMIN" ||
+    user?.role === "LOCALITY_ADMIN"
   );
 }
 
-export function canEditPosts(user: SessionUser) {
-  // Editors can edit drafts they have access to (scoping handled elsewhere)
-  return canPublish(user) || user.role === "EDITOR";
+/**
+ * Editors can edit drafts (scope enforced elsewhere)
+ */
+export function canEditPosts(user: SessionUser | null) {
+  return canPublish(user) || user?.role === "EDITOR";
 }
 
-export function canSelectAnyLocality(user: SessionUser) {
-  return user.role === "SUPER_ADMIN" || user.role === "STATE_ADMIN";
+/**
+ * Only admins who can choose *any* locality
+ */
+export function canSelectAnyLocality(user: SessionUser | null) {
+  return user?.role === "SUPER_ADMIN" || user?.role === "STATE_ADMIN";
 }
+
+/**
+ * Assign locality access
+ */
+export function canAssignLocalities(user: SessionUser | null) {
+  return user?.role === "SUPER_ADMIN" || user?.role === "STATE_ADMIN";
+}
+

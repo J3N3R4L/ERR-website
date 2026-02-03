@@ -3,171 +3,195 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+const localities = [
+  { name_en: "Nyala North", name_ar: "نيالا شمال", slug: "nyala-north" },
+  { name_en: "Nyala South", name_ar: "نيالا جنوب", slug: "nyala-south" },
+  { name_en: "Belail", name_ar: "بليل", slug: "belail" },
+  { name_en: "Kass", name_ar: "كاس", slug: "kass" },
+  { name_en: "Tulus", name_ar: "تلس", slug: "tulus" },
+  { name_en: "Ed El Fursan", name_ar: "عد الفرسان", slug: "ed-el-fursan" },
+  { name_en: "Buram", name_ar: "برام", slug: "buram" },
+  { name_en: "Kubum", name_ar: "كبم", slug: "kubum" },
+];
+
 async function main() {
-  // ---- 1) SUPER ADMIN (change email/password) ----
-  const adminEmail = process.env.SEED_ADMIN_EMAIL || "admin@example.com";
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD || "ChangeMe123!";
+  // Clean tables (children first, then parents)
+  await prisma.userLocalityAccess.deleteMany();
+  await prisma.post.deleteMany();
+  await prisma.document.deleteMany();
+  await prisma.photo.deleteMany();
+  await prisma.donationMethod.deleteMany();
+  await prisma.teamMember.deleteMany();
+  await prisma.siteSettings.deleteMany();
+  await prisma.contactSubmission.deleteMany();
+  await prisma.locality.deleteMany();
+  await prisma.user.deleteMany();
 
-  const password_hash = await bcrypt.hash(adminPassword, 10);
+  // Localities
+  await prisma.locality.createMany({
+    data: localities.map((locality) => ({
+      ...locality,
+      description_en: `Coverage area for ${locality.name_en}.`,
+      description_ar: `نطاق التغطية لمحلية ${locality.name_ar}.`,
+    })),
+    skipDuplicates: true,
+  });
 
-  const admin = await prisma.user.upsert({
-    where: { email: adminEmail },
-    update: {
-      password_hash,
+  // Users
+  const superAdminPassword = process.env.SEED_SUPER_ADMIN_PASSWORD || "ChangeMe123!";
+  const localityAdminPassword = process.env.SEED_LOCALITY_ADMIN_PASSWORD || "ChangeMe123!";
+
+  const superAdmin = await prisma.user.create({
+    data: {
+      email: "superadmin@err.local",
+      password_hash: await bcrypt.hash(superAdminPassword, 12),
       role: "SUPER_ADMIN",
       is_active: true,
     },
-    create: {
-      email: adminEmail,
-      password_hash,
-      role: "SUPER_ADMIN",
+  });
+
+  const localityAdmin = await prisma.user.create({
+    data: {
+      email: "kubum.admin@err.local",
+      password_hash: await bcrypt.hash(localityAdminPassword, 12),
+      role: "LOCALITY_ADMIN",
       is_active: true,
     },
-    select: { id: true, email: true, role: true },
   });
 
-  // ---- 2) Default localities (you can edit / expand) ----
-  const defaultLocalities = [
-    { slug: "eastern-nyala", name_en: "Eastern Nyala", name_ar: "نيالا شرق" },
-    { slug: "southern-nyala", name_en: "Southern Nyala", name_ar: "نيالا جنوب" },
-    { slug: "kabum", name_en: "Kabum", name_ar: "كبم" },
-    { slug: "ed-el-fursan", name_en: "Ed El Fursan", name_ar: "عد الفرسان" },
-    { slug: "kas", name_en: "Kas", name_ar: "كاس" },
-    { slug: "belail", name_en: "Belail", name_ar: "بليل" },
-    { slug: "buram", name_en: "Buram", name_ar: "برام" },
-    { slug: "tulus", name_en: "Tulus", name_ar: "تلس" },
-  ];
-
-  for (const loc of defaultLocalities) {
-    await prisma.locality.upsert({
-      where: { slug: loc.slug },
-      update: { name_en: loc.name_en, name_ar: loc.name_ar },
-      create: {
-        slug: loc.slug,
-        name_en: loc.name_en,
-        name_ar: loc.name_ar,
-      },
-    });
-  }
-
-  // ---- 3) Site settings (minimal) ----
-  await prisma.siteSettings.upsert({
-    where: { id: "default" },
-    update: {},
-    create: {
-      id: "default",
-      site_name_en: "South Darfur Emergency Response Rooms",
-      site_name_ar: "غرف الطوارئ – ولاية جنوب دارفور",
-      hero_text_en:
-        "Community-led humanitarian response to reduce suffering, protect dignity, and save lives.",
-      hero_text_ar:
-        "استجابة إنسانية مجتمعية لخفض المعاناة وحماية الكرامة وإنقاذ الأرواح.",
-      stats_json: {
-        beneficiaries: 0,
-        interventions: 0,
-        localities_covered: 0,
-        volunteers: 0,
-      },
-    },
-  });
-
-  // ---- 4) Donation methods (Bank of Khartoum + MyCashi) ----
-  const donationMethods = [
-    {
-      method_type: "BANK",
-      title_en: "Bank of Khartoum",
-      title_ar: "بنك الخرطوم",
-      details_en: "Account Name: (Add later)\nAccount Number: (Add later)\nBranch: (Add later)",
-      details_ar: "اسم الحساب: (يضاف لاحقاً)\nرقم الحساب: (يضاف لاحقاً)\nالفرع: (يضاف لاحقاً)",
-      sort_order: 1,
-    },
-    {
-      method_type: "MOBILE_MONEY",
-      title_en: "MyCashi Mobile Money",
-      title_ar: "ماي كاشي",
-      details_en: "Wallet Name: (Add later)\nWallet Number: (Add later)",
-      details_ar: "اسم المحفظة: (يضاف لاحقاً)\nرقم المحفظة: (يضاف لاحقاً)",
-      sort_order: 2,
-    },
-  ];
-
-  for (const m of donationMethods) {
-    await prisma.donationMethod.upsert({
-      where: {
-        // no unique constraint in schema, so we use a manual lookup then create/update
-        // We'll update by matching title_en + method_type
-        // (If you add a unique key later, simplify this)
-        id: (await prisma.donationMethod.findFirst({
-          where: { title_en: m.title_en, method_type: m.method_type as any },
-          select: { id: true },
-        }))?.id || "___new___",
-      },
-      update: {
-        method_type: m.method_type as any,
-        title_en: m.title_en,
-        title_ar: m.title_ar,
-        details_en: m.details_en,
-        details_ar: m.details_ar,
-        is_active: true,
-        sort_order: m.sort_order,
-      },
-      create: {
-        method_type: m.method_type as any,
-        title_en: m.title_en,
-        title_ar: m.title_ar,
-        details_en: m.details_en,
-        details_ar: m.details_ar,
-        is_active: true,
-        sort_order: m.sort_order,
-      },
-    }).catch(async () => {
-      // Fallback: if upsert where id fails due to "___new___", just create
-      await prisma.donationMethod.create({
-        data: {
-          method_type: m.method_type as any,
-          title_en: m.title_en,
-          title_ar: m.title_ar,
-          details_en: m.details_en,
-          details_ar: m.details_ar,
-          is_active: true,
-          sort_order: m.sort_order,
-        },
-      });
-    });
-  }
-
-  // ---- 5) Seed one sample NEWS post (optional) ----
-  const sample = await prisma.post.findFirst({
-    where: { slug: "welcome" },
-    select: { id: true },
-  });
-
-  if (!sample) {
-    await prisma.post.create({
+  // Give locality admin access to Kubum
+  const kubum = await prisma.locality.findUnique({ where: { slug: "kubum" } });
+  if (kubum) {
+    await prisma.userLocalityAccess.create({
       data: {
-        type: "NEWS" as any,
-        title_en: "Welcome",
-        title_ar: "مرحباً",
-        slug: "welcome",
-        excerpt_en: "First news post (seed).",
-        excerpt_ar: "أول خبر (تجريبي).",
-        body_en: "This is a seeded post to verify the website flow.",
-        body_ar: "هذا منشور تجريبي للتأكد من عمل الموقع.",
-        status: "PUBLISHED" as any,
-        published_at: new Date(),
-        created_by: admin.id,
+        user_id: localityAdmin.id,
+        locality_id: kubum.id,
       },
     });
   }
+
+  // Donation methods
+  await prisma.donationMethod.createMany({
+    data: [
+      {
+        method_type: "BANK",
+        title_en: "Bank of Khartoum",
+        title_ar: "بنك الخرطوم",
+        details_en: "Account name: South Darfur ERRs. Account: 123456789.",
+        details_ar: "اسم الحساب: غرف طوارئ جنوب دارفور. الرقم: 123456789.",
+        sort_order: 1,
+      },
+      {
+        method_type: "MOBILE_MONEY",
+        title_en: "MyCashi",
+        title_ar: "ماي كاشي",
+        details_en: "Wallet: 249900000000. Name: ERR South Darfur.",
+        details_ar: "المحفظة: 249900000000. الاسم: غرف طوارئ جنوب دارفور.",
+        sort_order: 2,
+      },
+    ],
+  });
+
+  // Site settings
+  await prisma.siteSettings.create({
+    data: {
+      site_name_en: "South Darfur Emergency Response Rooms",
+      site_name_ar: "غرف طوارئ جنوب دارفور",
+      hero_text_en: "Community-led rapid response for emergencies.",
+      hero_text_ar: "استجابة مجتمعية سريعة للطوارئ.",
+      stats_json: {
+        total_beneficiaries: 125000,
+        interventions_delivered: 320,
+        localities_covered: 8,
+        active_volunteers: 540,
+      },
+    },
+  });
+
+  // Sample posts
+  await prisma.post.createMany({
+    data: [
+      {
+        type: "NEWS",
+        title_en: "Rapid WASH response in Nyala North",
+        title_ar: "استجابة عاجلة للمياه في نيالا شمال",
+        slug: "wash-response-nyala-north",
+        excerpt_en: "Community teams repaired water points and delivered hygiene kits.",
+        excerpt_ar: "فرق مجتمعية أصلحت نقاط المياه ووزعت حقائب النظافة.",
+        body_en: "ERR volunteers restored access to safe water for 3,000 families.",
+        body_ar: "أعاد المتطوعون الوصول إلى المياه الآمنة لثلاثة آلاف أسرة.",
+        locality_id: kubum?.id ?? null,
+        status: "PUBLISHED",
+        published_at: new Date(),
+        created_by: superAdmin.id,
+      },
+      {
+        type: "NEWS",
+        title_en: "Health outreach in Kass locality",
+        title_ar: "حملة صحية في محلية كاس",
+        slug: "health-outreach-kass",
+        excerpt_en: "Mobile clinics supported displaced families with primary care.",
+        excerpt_ar: "عيادات متنقلة دعمت الأسر النازحة بالرعاية الأولية.",
+        body_en: "Local teams delivered consultations and essential medicines.",
+        body_ar: "قدمت الفرق المحلية الاستشارات والأدوية الأساسية.",
+        locality_id: null,
+        status: "PUBLISHED",
+        published_at: new Date(),
+        created_by: superAdmin.id,
+      },
+      {
+        type: "FIELD_UPDATE",
+        title_en: "Emergency shelter support in Kubum",
+        title_ar: "دعم المأوى الطارئ في كبم",
+        slug: "shelter-kubum",
+        excerpt_en: "Temporary shelter materials provided to newly displaced families.",
+        excerpt_ar: "توفير مواد مأوى مؤقت للأسر النازحة حديثاً.",
+        context_en: "Recent displacement left families without safe shelter.",
+        context_ar: "تسبب النزوح الأخير في فقدان الأسر للمأوى الآمن.",
+        action_en: "We distributed shelter kits and coordinated with local leaders.",
+        action_ar: "قمنا بتوزيع حقائب المأوى والتنسيق مع القيادات المحلية.",
+        results_en: "240 households received shelter kits and blankets.",
+        results_ar: "استفادت 240 أسرة من حقائب المأوى والبطانيات.",
+        next_steps_en: "We need additional tarpaulins and tools for 150 families.",
+        next_steps_ar: "نحتاج إلى مزيد من المشمعات والأدوات لـ 150 أسرة.",
+        urgent_need: true,
+        locality_id: kubum?.id ?? null,
+        status: "PUBLISHED",
+        published_at: new Date(),
+        created_by: superAdmin.id,
+      },
+      {
+        type: "FIELD_UPDATE",
+        title_en: "Food distribution in Tulus",
+        title_ar: "توزيع غذائي في تلس",
+        slug: "food-distribution-tulus",
+        excerpt_en: "Emergency food parcels delivered with community committees.",
+        excerpt_ar: "توزيع سلال غذائية طارئة بالتنسيق مع اللجان المجتمعية.",
+        context_en: "Rising food insecurity impacted families in Tulus.",
+        context_ar: "تفاقم انعدام الأمن الغذائي أثر على الأسر في تلس.",
+        action_en: "We coordinated volunteers and delivered food parcels.",
+        action_ar: "نسقنا المتطوعين وسلّمنا السلال الغذائية.",
+        results_en: "500 households received two-week food support.",
+        results_ar: "استفادت 500 أسرة من دعم غذائي لمدة أسبوعين.",
+        next_steps_en: "We plan to expand coverage to remote villages.",
+        next_steps_ar: "نخطط لتوسيع التغطية للقرى النائية.",
+        urgent_need: false,
+        locality_id: null,
+        status: "PUBLISHED",
+        published_at: new Date(),
+        created_by: superAdmin.id,
+      },
+    ],
+  });
 
   console.log("✅ Seed completed.");
-  console.log(`✅ Admin: ${admin.email} (${admin.role})`);
-  console.log("ℹ️ Tip: set SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD in your .env");
+  console.log("✅ superadmin@err.local / (SEED_SUPER_ADMIN_PASSWORD or ChangeMe123!)");
+  console.log("✅ kubum.admin@err.local / (SEED_LOCALITY_ADMIN_PASSWORD or ChangeMe123!)");
 }
 
 main()
-  .catch((e) => {
-    console.error("❌ Seed failed:", e);
+  .catch((error) => {
+    console.error("❌ Seed failed:", error);
     process.exit(1);
   })
   .finally(async () => {

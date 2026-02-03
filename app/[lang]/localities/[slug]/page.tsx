@@ -12,7 +12,13 @@ export default async function LocalityDetailPage({
   }
 
   const locality = await prisma.locality.findUnique({
-    where: { slug: params.slug }
+    where: { slug: params.slug },
+    select: {
+      name_ar: true,
+      name_en: true,
+      description_ar: true,
+      description_en: true
+    }
   });
 
   if (!locality) {
@@ -35,7 +41,7 @@ export default async function LocalityDetailPage({
         {t(
           lang,
           "Locality hub sections (news, updates, documents, gallery) will appear here.",
-          "ستظهر هنا أقسام الأخبار والتحديثات والمستندات والمعرض الخاصة بالمحلية." 
+          "ستظهر هنا أقسام الأخبار والتحديثات والمستندات والمعرض الخاصة بالمحلية."
         )}
       </div>
     </main>

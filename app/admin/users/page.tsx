@@ -11,6 +11,7 @@ type AdminUserRow = {
 
 export default async function AdminUsersPage() {
   const sessionUser = await getSessionUser();
+
   if (!sessionUser) {
     return (
       <main className="container py-10">
@@ -97,8 +98,9 @@ export default async function AdminUsersPage() {
               <th className="p-3">Active</th>
             </tr>
           </thead>
+
           <tbody>
-            {users.map((user) => (
+            {users.map((user: AdminUserRow) => (
               <tr key={user.id} className="border-b">
                 <td className="p-3">{user.email}</td>
                 <td className="p-3">{user.role}</td>

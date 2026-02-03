@@ -33,12 +33,10 @@ export default async function AdminNewsPage() {
     select: { locality_id: true },
   });
 
-  const localityIds = access.map((entry) => entry.locality_id);
+  const localityIds = access.map((entry: AccessEntry) => entry.locality_id);
 
   const posts: AdminNewsRow[] = await prisma.post.findMany({
-    where: canSeeAll
-      ? { type: "NEWS" }
-      : { type: "NEWS", locality_id: { in: localityIds } },
+    where: canSeeAll ? { type: "NEWS" } : { type: "NEWS", locality_id: { in: localityIds } },
     orderBy: [{ published_at: "desc" }, { created_at: "desc" }],
     select: {
       id: true,
@@ -77,7 +75,7 @@ export default async function AdminNewsPage() {
           </thead>
 
           <tbody>
-            {posts.map((post) => (
+            {posts.map((post: AdminNewsRow) => (
               <tr key={post.id} className="border-b">
                 <td className="p-3">
                   <div className="font-medium">{post.title_en}</div>
