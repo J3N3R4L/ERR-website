@@ -5,8 +5,8 @@ const prisma = new PrismaClient();
 
 async function main() {
   // ---- 1) SUPER ADMIN (change email/password) ----
-  const adminEmail = process.env.SEED_ADMIN_EMAIL || "admin@example.com";
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD || "ChangeMe123!";
+  const adminEmail = process.env.SEED_ADMIN_EMAIL || "admin@err.local";
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD || "errpassword";
 
   const password_hash = await bcrypt.hash(adminPassword, 10);
 
