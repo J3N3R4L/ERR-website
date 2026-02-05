@@ -36,7 +36,7 @@ async function main() {
     { slug: "belail", name_en: "Belail", name_ar: "بليل" },
     { slug: "buram", name_en: "Buram", name_ar: "برام" },
     { slug: "tulus", name_en: "Tulus", name_ar: "تلس" },
-  ];
+  ] as const;
 
   for (const loc of defaultLocalities) {
     await prisma.locality.upsert({
@@ -72,13 +72,16 @@ async function main() {
   });
 
   // ---- 4) Donation methods (Bank of Khartoum + MyCashi) ----
+  // Requires schema: @@unique([method_type, title_en])
   const donationMethods = [
     {
       method_type: "BANK",
       title_en: "Bank of Khartoum",
       title_ar: "بنك الخرطوم",
-      details_en: "Account Name: (Add later)\nAccount Number: (Add later)\nBranch: (Add later)",
-      details_ar: "اسم الحساب: (يضاف لاحقاً)\nرقم الحساب: (يضاف لاحقاً)\nالفرع: (يضاف لاحقاً)",
+      details_en:
+        "Account Name: (Add later)\nAccount Number: (Add later)\nBranch: (Add later)",
+      details_ar:
+        "اسم الحساب: (يضاف لاحقاً)\nرقم الحساب: (يضاف لاحقاً)\nالفرع: (يضاف لاحقاً)",
       sort_order: 1,
     },
     {
@@ -89,22 +92,17 @@ async function main() {
       details_ar: "اسم المحفظة: (يضاف لاحقاً)\nرقم المحفظة: (يضاف لاحقاً)",
       sort_order: 2,
     },
-  ];
+  ] as const;
 
   for (const m of donationMethods) {
     await prisma.donationMethod.upsert({
       where: {
-        // no unique constraint in schema, so we use a manual lookup then create/update
-        // We'll update by matching title_en + method_type
-        // (If you add a unique key later, simplify this)
-        id: (await prisma.donationMethod.findFirst({
-          where: { title_en: m.title_en, method_type: m.method_type as any },
-          select: { id: true },
-        }))?.id || "___new___",
+        method_type_title_en: {
+          method_type: m.method_type,
+          title_en: m.title_en,
+        },
       },
       update: {
-        method_type: m.method_type as any,
-        title_en: m.title_en,
         title_ar: m.title_ar,
         details_en: m.details_en,
         details_ar: m.details_ar,
@@ -112,7 +110,7 @@ async function main() {
         sort_order: m.sort_order,
       },
       create: {
-        method_type: m.method_type as any,
+        method_type: m.method_type,
         title_en: m.title_en,
         title_ar: m.title_ar,
         details_en: m.details_en,
@@ -120,19 +118,6 @@ async function main() {
         is_active: true,
         sort_order: m.sort_order,
       },
-    }).catch(async () => {
-      // Fallback: if upsert where id fails due to "___new___", just create
-      await prisma.donationMethod.create({
-        data: {
-          method_type: m.method_type as any,
-          title_en: m.title_en,
-          title_ar: m.title_ar,
-          details_en: m.details_en,
-          details_ar: m.details_ar,
-          is_active: true,
-          sort_order: m.sort_order,
-        },
-      });
     });
   }
 
@@ -145,7 +130,7 @@ async function main() {
   if (!sample) {
     await prisma.post.create({
       data: {
-        type: "NEWS" as any,
+        type: "NEWS",
         title_en: "Welcome",
         title_ar: "مرحباً",
         slug: "welcome",
@@ -153,7 +138,7 @@ async function main() {
         excerpt_ar: "أول خبر (تجريبي).",
         body_en: "This is a seeded post to verify the website flow.",
         body_ar: "هذا منشور تجريبي للتأكد من عمل الموقع.",
-        status: "PUBLISHED" as any,
+        status: "PUBLISHED",
         published_at: new Date(),
         created_by: admin.id,
       },

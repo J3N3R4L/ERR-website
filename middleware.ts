@@ -4,12 +4,18 @@ import { NextRequest, NextResponse } from "next/server";
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  // Only protect /admin/*
   if (!pathname.startsWith("/admin")) return NextResponse.next();
 
-  // Allow login page + login POST handler
+  // Allow the login page
   if (pathname === "/admin/login") return NextResponse.next();
 
-  // Auth cookies (set by app/admin/login/route.ts)
+  // Allow auth endpoints (VERY IMPORTANT)
+  if (pathname === "/api/admin/login" || pathname === "/api/admin/logout") {
+    return NextResponse.next();
+  }
+
+  // Auth cookies (set by your login route)
   const userId = req.cookies.get("err_user_id")?.value;
   const role = req.cookies.get("err_role")?.value;
 
@@ -20,7 +26,7 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Server-side access block example:
+  // Example access block:
   if (pathname.startsWith("/admin/users") && role !== "SUPER_ADMIN") {
     return new NextResponse("Access denied", { status: 403 });
   }

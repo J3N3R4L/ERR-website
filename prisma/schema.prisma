@@ -29,6 +29,19 @@ enum DonationMethodType {
   MOBILE_MONEY
 }
 
+model DonationMethod {
+  id          String             @id @default(uuid())
+  method_type DonationMethodType
+  title_ar    String
+  title_en    String
+  details_ar  String
+  details_en  String
+  is_active   Boolean            @default(true)
+  sort_order  Int                @default(0)
+
+  @@unique([method_type, title_en])
+}
+
 model User {
   id            String   @id @default(uuid())
   email         String   @unique
@@ -130,17 +143,6 @@ model Photo {
 
   locality Locality? @relation(fields: [locality_id], references: [id])
   uploader User      @relation(fields: [uploaded_by], references: [id])
-}
-
-model DonationMethod {
-  id          String             @id @default(uuid())
-  method_type DonationMethodType
-  title_ar    String
-  title_en    String
-  details_ar  String
-  details_en  String
-  is_active   Boolean            @default(true)
-  sort_order  Int                @default(0)
 }
 
 model TeamMember {
